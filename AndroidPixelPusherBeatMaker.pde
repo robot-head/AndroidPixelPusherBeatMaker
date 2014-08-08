@@ -1,5 +1,10 @@
 import android.view.MotionEvent;
+import java.util.*;
 import android.view.View;
+import com.heroicrobot.dropbit.registry.*;
+import com.heroicrobot.dropbit.devices.pixelpusher.Pixel;
+import com.heroicrobot.dropbit.devices.pixelpusher.Strip;
+
 
 int beat_width=0;
 long period = 1000000000 / (120 / 60);
@@ -13,10 +18,12 @@ long lastTap = 0;
 int palettes[][] = {
   {
     #B21212, #FFFC19, #FF0000, #1485CC, #0971B2
-  },
+  }
+  , 
   {
     #435772, #2DA4A8, #FEAA3A, #FD6041, #CF2257
-  },
+  }
+  , 
   {
     #FF003C, #FF8A00, #FABE28, #88C100, #00C176
   }
@@ -25,6 +32,7 @@ int palettes[][] = {
 void setup() {
   size(displayWidth, displayHeight);
   noSmooth();
+  noStroke();
   //size(400, 660); // needs to be a multiple of 330
   colorMode(RGB, 100);
   orientation(PORTRAIT);
@@ -36,15 +44,22 @@ void setup() {
   }
   );
 
-  //  registry = new DeviceRegistry();
-  //  testObserver = new TestObserver();
-  //  registry.addObserver(testObserver);
-  //  registry.setAntiLog(true);
+  registry = new DeviceRegistry();
+  testObserver = new TestObserver();
+  registry.addObserver(testObserver);
+  registry.setAntiLog(true);
   lastbeat = System.nanoTime();
 }
 
 void pattern() {
-  background(palettes[color_idx][palette_idx]);
+  float sliceHeight = height / (float)palettes[color_idx].length;
+  float y = 0;
+  for (int i = 0; i < palettes[color_idx].length; i++) {
+    fill(palettes[color_idx][(palette_idx + i) % palettes[color_idx].length]);
+    y = i * sliceHeight;
+    rect(0, y, width, y + sliceHeight);
+  }
+  //background(palettes[color_idx][palette_idx]);
 }
 
 void draw() {
@@ -59,7 +74,9 @@ void draw() {
       }
     }
   }
-  // scrape
+  
+  scrape();
+  
   if (System.nanoTime() - lastbeat > period) {
     launch_beat=true;
     beat_width = BEAT_WIDTH;
@@ -77,6 +94,14 @@ void tap() {
   lastTap = System.nanoTime();
 }
 
+void nextColor() {
+  color_idx++;
+  if (color_idx >= palettes.length) {
+    color_idx = 0;
+  }
+}
+boolean cancelTap = false;
+
 @Override
 public boolean dispatchTouchEvent(MotionEvent event) {
 
@@ -90,13 +115,18 @@ public boolean dispatchTouchEvent(MotionEvent event) {
   switch (action) {                              // let us know which action code shows up
   case MotionEvent.ACTION_DOWN:
     //touchEvent = "DOWN";
-    tap();
+
     break;
   case MotionEvent.ACTION_UP:
     //    touchEvent = "UP";
+    if (!cancelTap) {
+      tap();
+    }
+    cancelTap = false;
     break;
-  case MotionEvent.ACTION_MOVE:
-    //    touchEvent = "MOVE";
+  case MotionEvent.ACTION_POINTER_DOWN: 
+    nextColor();
+    cancelTap = true;
     break;
   default:
     //    touchEvent = "OTHER (CODE " + action + ")";  // default text on other event
